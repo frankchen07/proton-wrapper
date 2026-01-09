@@ -363,24 +363,81 @@
         });
     }
 
+    function refocusSelection() {
+        const selected = getSelectedMessages();
+        if (selected.length === 0) return false;
+        
+        log(`Refocusing ${selected.length} selected items`);
+        
+        // Click on the first selected item to "refresh" the toolbar state
+        // This helps Proton Mail recognize the selection is still active
+        const firstSelected = selected[0];
+        if (firstSelected) {
+            // Small delay to ensure UI is ready
+            setTimeout(() => {
+                // Try clicking the item itself (but not the checkbox)
+                const rect = firstSelected.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    // Click slightly to the right of the checkbox area to avoid toggling
+                    const clickEvent = new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                        button: 0,
+                        buttons: 1,
+                        detail: 1,
+                        clientX: rect.left + rect.width * 0.3, // Click in middle-left area
+                        clientY: rect.top + rect.height / 2
+                    });
+                    firstSelected.dispatchEvent(clickEvent);
+                    
+                    // Also try a focus event
+                    firstSelected.focus();
+                    
+                    log('Refocused selection');
+                }
+            }, 100);
+            return true;
+        }
+        return false;
+    }
+
     function performAction(actionFn) {
         const selected = getSelectedMessages();
         const current = getCurrentMessage();
+        const wasMessageOpen = isMessageOpen();
         
-        log(`Selected: ${selected.length}, Current: ${current ? 'yes' : 'no'}`);
+        log(`Selected: ${selected.length}, Current: ${current ? 'yes' : 'no'}, Message open: ${wasMessageOpen}`);
         
         // If a message is open and we have multiple selections, close it first
-        if (selected.length > 1 && isMessageOpen()) {
+        if (selected.length > 1 && wasMessageOpen) {
             log('Message is open with multiple selections, closing message first');
             closeMessage();
+            
+            // After closing, refocus the selection to reactivate toolbar
+            setTimeout(() => {
+                refocusSelection();
+                
+                // Then perform the action after toolbar is reactivated
+                setTimeout(() => {
+                    actionFn();
+                }, 300);
+            }, 200);
+            return;
         }
         
         if (selected.length > 0) {
             log(`Performing action on ${selected.length} selected items`);
+            
+            // If we just came back from a message view, refocus first
+            if (wasMessageOpen) {
+                refocusSelection();
+            }
+            
             // Longer delay for multiple selections to ensure UI has fully updated
             // Even longer if we just closed a message
             const baseDelay = selected.length > 1 ? 300 : 150;
-            const delay = isMessageOpen() ? baseDelay + 200 : baseDelay;
+            const delay = wasMessageOpen ? baseDelay + 200 : baseDelay;
             setTimeout(() => {
                 actionFn();
             }, delay);
@@ -626,6 +683,34 @@
     }
 
     function replyAllAction() {
+        const selected = getSelectedMessages();
+        
+        // If multiple items are selected, only reply to the current/first one
+        if (selected.length > 1) {
+            log('Multiple items selected, replying to first selected item');
+            const firstSelected = selected[0];
+            if (firstSelected) {
+                firstSelected.click();
+                setTimeout(() => {
+                    const selectors = [
+                        'button[title*="Reply all" i]',
+                        'button[aria-label*="Reply all" i]',
+                        '[data-testid*="reply-all" i]'
+                    ];
+                    
+                    for (const selector of selectors) {
+                        const btn = document.querySelector(selector);
+                        if (btn && btn.offsetParent !== null) {
+                            btn.click();
+                            return;
+                        }
+                    }
+                }, 200);
+            }
+            return;
+        }
+        
+        // Normal case: single item or no selection
         const current = getCurrentMessage();
         if (current) {
             current.click();
@@ -887,6 +972,151 @@
         return false;
     }
 
+    function labelAction() {
+        log('Looking for label button...');
+        
+        // Try toolbar first (when items are selected)
+        const toolbarSelectors = [
+            '[class*="toolbar"]',
+            '[class*="action-bar"]',
+            '[class*="actions"]',
+            '[role="toolbar"]'
+        ];
+        
+        let btn = null;
+        
+        for (const toolbarSel of toolbarSelectors) {
+            const toolbar = document.querySelector(toolbarSel);
+            if (toolbar) {
+                // Look for label/tag button - common names: Label, Tag, Labels, Tags
+                btn = toolbar.querySelector('button[title*="Label" i], button[aria-label*="Label" i], button[title*="Tag" i], button[aria-label*="Tag" i], [data-testid*="label" i], [data-testid*="tag" i]');
+                if (btn && btn.offsetParent !== null && !btn.disabled) {
+                    log(`Found button in toolbar with selector: ${toolbarSel}`);
+                    break;
+                }
+                btn = null;
+            }
+        }
+        
+        // If not found in toolbar, try global selectors
+        if (!btn) {
+            const selectors = [
+                'button[title*="Label" i]',
+                'button[aria-label*="Label" i]',
+                'button[title*="Tag" i]',
+                'button[aria-label*="Tag" i]',
+                '[data-testid*="label" i]',
+                '[data-testid*="tag" i]',
+                'button:has(svg[class*="label"])',
+                'button:has(svg[class*="tag"])'
+            ];
+            
+            for (const selector of selectors) {
+                btn = document.querySelector(selector);
+                if (btn && btn.offsetParent !== null && !btn.disabled) {
+                    log(`Found button with global selector: ${selector}`);
+                    break;
+                }
+                btn = null;
+            }
+        }
+        
+        // Final fallback: search all visible buttons in toolbar areas
+        if (!btn) {
+            for (const toolbarSel of toolbarSelectors) {
+                const toolbar = document.querySelector(toolbarSel);
+                if (toolbar) {
+                    const allButtons = Array.from(toolbar.querySelectorAll('button'));
+                    for (const button of allButtons) {
+                        if (button.offsetParent === null || button.disabled) continue;
+                        
+                        const text = (button.textContent || '').toLowerCase();
+                        const title = (button.title || '').toLowerCase();
+                        const ariaLabel = (button.getAttribute('aria-label') || '').toLowerCase();
+                        const dataTestId = (button.getAttribute('data-testid') || '').toLowerCase();
+                        
+                        if (text.includes('label') || text.includes('tag') ||
+                            title.includes('label') || title.includes('tag') ||
+                            ariaLabel.includes('label') || ariaLabel.includes('tag') ||
+                            dataTestId.includes('label') || dataTestId.includes('tag')) {
+                            btn = button;
+                            log(`Found label button by text/content fallback`);
+                            break;
+                        }
+                    }
+                    if (btn) break;
+                }
+            }
+        }
+        
+        if (btn) {
+            log(`Button found: className=${btn.className}`);
+            
+            // Single, clean click after ensuring button is ready
+            setTimeout(() => {
+                // Scroll button into view if needed
+                btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                
+                // Wait for scroll to complete, then get fresh position
+                setTimeout(() => {
+                    // Get fresh button position (may have changed after scroll)
+                    const rect = btn.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    
+                    // Use a single, natural click sequence
+                    // First mousedown
+                    const mouseDown = new MouseEvent('mousedown', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                        button: 0,
+                        buttons: 1,
+                        clientX: centerX,
+                        clientY: centerY
+                    });
+                    
+                    // Then mouseup
+                    const mouseUp = new MouseEvent('mouseup', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                        button: 0,
+                        buttons: 0,
+                        clientX: centerX,
+                        clientY: centerY
+                    });
+                    
+                    // Then click
+                    const clickEvent = new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                        button: 0,
+                        buttons: 0,
+                        detail: 1,
+                        clientX: centerX,
+                        clientY: centerY
+                    });
+                    
+                    // Dispatch in proper sequence with small delays
+                    btn.dispatchEvent(mouseDown);
+                    setTimeout(() => {
+                        btn.dispatchEvent(mouseUp);
+                        setTimeout(() => {
+                            btn.dispatchEvent(clickEvent);
+                            log('Label button clicked (single clean click)');
+                        }, 10);
+                    }, 10);
+                }, 150);
+            }, 200);
+            return true;
+        }
+        
+        log('Label button not found');
+        return false;
+    }
+    
     function composeAction() {
         const selectors = [
             'button[title*="Compose" i]',
@@ -1152,6 +1382,17 @@
                 e.preventDefault();
                 focusSearchAction();
                 handled = true;
+                break;
+
+            case 'l':
+                // Only work when items are selected
+                const selected = getSelectedMessages();
+                if (selected.length > 0) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    performAction(labelAction);
+                    handled = true;
+                }
                 break;
         }
 
