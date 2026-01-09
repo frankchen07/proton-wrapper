@@ -224,7 +224,7 @@
             log('Message is open, closing and navigating');
             closeMessage();
             
-            // Wait a bit for the view to close, then navigate
+            // Reduced wait time for view to close
             setTimeout(() => {
                 if (cursorIndex < 0) {
                     const current = getCurrentMessage();
@@ -241,7 +241,7 @@
                     target.click();
                     log(`Opened message ${cursorIndex + 1}/${items.length}`);
                 }
-            }, 200);
+            }, 50);
             return;
         }
         
@@ -373,7 +373,7 @@
         // This helps Proton Mail recognize the selection is still active
         const firstSelected = selected[0];
         if (firstSelected) {
-            // Small delay to ensure UI is ready
+            // Reduced delay
             setTimeout(() => {
                 // Try clicking the item itself (but not the checkbox)
                 const rect = firstSelected.getBoundingClientRect();
@@ -396,7 +396,7 @@
                     
                     log('Refocused selection');
                 }
-            }, 100);
+            }, 50);
             return true;
         }
         return false;
@@ -421,8 +421,8 @@
                 // Then perform the action after toolbar is reactivated
                 setTimeout(() => {
                     actionFn();
-                }, 300);
-            }, 200);
+                }, 100);
+            }, 100);
             return;
         }
         
@@ -434,20 +434,19 @@
                 refocusSelection();
             }
             
-            // Longer delay for multiple selections to ensure UI has fully updated
-            // Even longer if we just closed a message
-            const baseDelay = selected.length > 1 ? 300 : 150;
-            const delay = wasMessageOpen ? baseDelay + 200 : baseDelay;
+            // Reduced delays - UI should be ready quickly
+            const baseDelay = selected.length > 1 ? 50 : 0;
+            const delay = wasMessageOpen ? baseDelay + 50 : baseDelay;
             setTimeout(() => {
                 actionFn();
             }, delay);
         } else if (current) {
             log('No selection, selecting cursor item first');
             toggleSelection();
-            // Wait longer for UI to update after selection
+            // Reduced delay for UI update
             setTimeout(() => {
                 actionFn();
-            }, 300);
+            }, 100);
         } else {
             log('No current message or selection');
         }
@@ -604,10 +603,17 @@
         }
         
         if (btn) {
-            // Delay then click with multiple methods
+            // Reduced delay - click immediately if button is ready
             setTimeout(() => {
-                // Scroll button into view if needed
-                btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                // Only scroll if button is not visible
+                const rect = btn.getBoundingClientRect();
+                const isVisible = rect.top >= 0 && rect.left >= 0 && 
+                                 rect.bottom <= window.innerHeight && 
+                                 rect.right <= window.innerWidth;
+                
+                if (!isVisible) {
+                    btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
                 
                 // Focus and click
                 btn.focus();
@@ -649,10 +655,10 @@
                 setTimeout(() => {
                     btn.dispatchEvent(mouseUp);
                     btn.dispatchEvent(clickEvent);
-                }, 10);
+                }, 5);
                 
                 log('Delete clicked');
-            }, 200);
+            }, 50);
             return true;
         }
         
@@ -678,7 +684,7 @@
                         return;
                     }
                 }
-            }, 200);
+            }, 50);
         }
     }
 
@@ -705,7 +711,7 @@
                             return;
                         }
                     }
-                }, 200);
+                }, 50);
             }
             return;
         }
@@ -728,7 +734,7 @@
                         return;
                     }
                 }
-            }, 200);
+            }, 50);
         }
     }
 
@@ -750,7 +756,7 @@
                         return;
                     }
                 }
-            }, 200);
+            }, 50);
         }
     }
 
@@ -818,10 +824,17 @@
         }
         
         if (btn) {
-            // Delay then click with multiple methods
+            // Reduced delay - click immediately if button is ready
             setTimeout(() => {
-                // Scroll button into view if needed
-                btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                // Only scroll if button is not visible
+                const rect = btn.getBoundingClientRect();
+                const isVisible = rect.top >= 0 && rect.left >= 0 && 
+                                 rect.bottom <= window.innerHeight && 
+                                 rect.right <= window.innerWidth;
+                
+                if (!isVisible) {
+                    btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
                 
                 // Focus and click
                 btn.focus();
@@ -863,10 +876,10 @@
                 setTimeout(() => {
                     btn.dispatchEvent(mouseUp);
                     btn.dispatchEvent(clickEvent);
-                }, 10);
+                }, 5);
                 
                 log('Marked as unread');
-            }, 200);
+            }, 50);
             return true;
         }
         
@@ -916,10 +929,17 @@
         }
         
         if (btn) {
-            // Delay then click with multiple methods
+            // Reduced delay - click immediately if button is ready
             setTimeout(() => {
-                // Scroll button into view if needed
-                btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                // Only scroll if button is not visible
+                const rect = btn.getBoundingClientRect();
+                const isVisible = rect.top >= 0 && rect.left >= 0 && 
+                                 rect.bottom <= window.innerHeight && 
+                                 rect.right <= window.innerWidth;
+                
+                if (!isVisible) {
+                    btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
                 
                 // Focus and click
                 btn.focus();
@@ -961,10 +981,10 @@
                 setTimeout(() => {
                     btn.dispatchEvent(mouseUp);
                     btn.dispatchEvent(clickEvent);
-                }, 10);
+                }, 5);
                 
                 log('Marked as read');
-            }, 200);
+            }, 50);
             return true;
         }
         
@@ -1052,64 +1072,70 @@
         if (btn) {
             log(`Button found: className=${btn.className}`);
             
-            // Single, clean click after ensuring button is ready
-            setTimeout(() => {
-                // Scroll button into view if needed
+            // Get button position immediately
+            const rect = btn.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // Check if button is already visible in viewport (skip scroll if so)
+            const isVisible = rect.top >= 0 && rect.left >= 0 && 
+                             rect.bottom <= window.innerHeight && 
+                             rect.right <= window.innerWidth;
+            
+            if (!isVisible) {
+                // Only scroll if needed
                 btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            
+            // Reduced delay - toolbar should be ready when items are selected
+            setTimeout(() => {
+                // Get fresh position after potential scroll
+                const freshRect = btn.getBoundingClientRect();
+                const freshX = freshRect.left + freshRect.width / 2;
+                const freshY = freshRect.top + freshRect.height / 2;
                 
-                // Wait for scroll to complete, then get fresh position
+                // Use a single, natural click sequence
+                const mouseDown = new MouseEvent('mousedown', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    button: 0,
+                    buttons: 1,
+                    clientX: freshX,
+                    clientY: freshY
+                });
+                
+                const mouseUp = new MouseEvent('mouseup', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    button: 0,
+                    buttons: 0,
+                    clientX: freshX,
+                    clientY: freshY
+                });
+                
+                const clickEvent = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    button: 0,
+                    buttons: 0,
+                    detail: 1,
+                    clientX: freshX,
+                    clientY: freshY
+                });
+                
+                // Dispatch in proper sequence with minimal delays
+                btn.dispatchEvent(mouseDown);
                 setTimeout(() => {
-                    // Get fresh button position (may have changed after scroll)
-                    const rect = btn.getBoundingClientRect();
-                    const centerX = rect.left + rect.width / 2;
-                    const centerY = rect.top + rect.height / 2;
-                    
-                    // Use a single, natural click sequence
-                    // First mousedown
-                    const mouseDown = new MouseEvent('mousedown', {
-                        bubbles: true,
-                        cancelable: true,
-                        view: window,
-                        button: 0,
-                        buttons: 1,
-                        clientX: centerX,
-                        clientY: centerY
-                    });
-                    
-                    // Then mouseup
-                    const mouseUp = new MouseEvent('mouseup', {
-                        bubbles: true,
-                        cancelable: true,
-                        view: window,
-                        button: 0,
-                        buttons: 0,
-                        clientX: centerX,
-                        clientY: centerY
-                    });
-                    
-                    // Then click
-                    const clickEvent = new MouseEvent('click', {
-                        bubbles: true,
-                        cancelable: true,
-                        view: window,
-                        button: 0,
-                        buttons: 0,
-                        detail: 1,
-                        clientX: centerX,
-                        clientY: centerY
-                    });
-                    
-                    // Dispatch in proper sequence with small delays
-                    btn.dispatchEvent(mouseDown);
+                    btn.dispatchEvent(mouseUp);
                     setTimeout(() => {
-                        btn.dispatchEvent(mouseUp);
-                        setTimeout(() => {
-                            btn.dispatchEvent(clickEvent);
-                            log('Label button clicked (single clean click)');
-                        }, 10);
-                    }, 10);
-                }, 150);
-            }, 200);
+                        btn.dispatchEvent(clickEvent);
+                        log('Label button clicked (single clean click)');
+                    }, 5);
+                }, 5);
+            }, 50);
             return true;
         }
         
