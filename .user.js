@@ -98,6 +98,80 @@
         return false;
     }
 
+    // Check if we're currently in the inbox
+    function isInInbox() {
+        // Check URL
+        if (window.location.href.includes('/inbox') || window.location.href.includes('/inbox/')) {
+            return true;
+        }
+        
+        // Check for active inbox indicator in navigation
+        const inboxSelectors = [
+            'a[href*="inbox" i][class*="active"]',
+            'a[href*="inbox" i][aria-current="page"]',
+            '[data-testid*="inbox" i][class*="active"]',
+            'button[title*="Inbox" i][class*="active"]',
+            '[aria-label*="Inbox" i][class*="active"]'
+        ];
+        
+        for (const selector of inboxSelectors) {
+            const el = document.querySelector(selector);
+            if (el && el.offsetParent !== null) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    // Refresh the inbox
+    function refreshInbox() {
+        log('Refreshing inbox...');
+        
+        // Try to find and click refresh/reload button
+        const refreshSelectors = [
+            'button[title*="Refresh" i]',
+            'button[aria-label*="Refresh" i]',
+            'button[title*="Reload" i]',
+            'button[aria-label*="Reload" i]',
+            '[data-testid*="refresh" i]',
+            '[data-testid*="reload" i]',
+            'button:has(svg[class*="refresh"])',
+            'button:has(svg[class*="reload"])',
+            'button:has(svg[class*="arrow"])'
+        ];
+        
+        for (const selector of refreshSelectors) {
+            const btn = document.querySelector(selector);
+            if (btn && btn.offsetParent !== null && !btn.disabled) {
+                btn.click();
+                log('Clicked refresh button');
+                return true;
+            }
+        }
+        
+        // Fallback: click inbox link again to refresh
+        const inboxSelectors = [
+            'a[href*="inbox" i]',
+            '[data-testid*="inbox" i]',
+            'button[title*="Inbox" i]',
+            '[aria-label*="Inbox" i]'
+        ];
+        
+        for (const selector of inboxSelectors) {
+            const el = document.querySelector(selector);
+            if (el && el.offsetParent !== null) {
+                el.click();
+                log('Clicked inbox link to refresh');
+                return true;
+            }
+        }
+        
+        // Last resort: reload page
+        window.location.reload();
+        return false;
+    }
+
     // Close any open message and return to list view
     function closeMessage() {
         // Look for close/back buttons
@@ -1181,6 +1255,40 @@
 
     // Navigation shortcuts (g+i, g+s, etc.)
     function handleGNavigation(key) {
+        // Special handling for g+i: close message if open, or refresh if already in inbox
+        if (key === 'i') {
+            if (isMessageOpen()) {
+                log('Message is open, closing and navigating to inbox');
+                closeMessage();
+                // Wait for message to close, then navigate to inbox
+                setTimeout(() => {
+                    const inboxSelectors = [
+                        'a[href*="inbox" i]',
+                        '[data-testid*="inbox" i]',
+                        'button[title*="Inbox" i]',
+                        '[aria-label*="Inbox" i]',
+                        '[class*="inbox"]',
+                        'nav a[href*="inbox" i]'
+                    ];
+                    
+                    for (const selector of inboxSelectors) {
+                        const el = document.querySelector(selector);
+                        if (el && el.offsetParent !== null) {
+                            el.click();
+                            log('Navigated to inbox');
+                            return;
+                        }
+                    }
+                }, 100);
+                return true;
+            } else if (isInInbox()) {
+                log('Already in inbox, refreshing');
+                refreshInbox();
+                return true;
+            }
+            // Otherwise fall through to normal navigation
+        }
+        
         const navMap = {
             'i': { 
                 selectors: [
