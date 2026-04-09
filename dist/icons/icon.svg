@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Background rounded square in ProtonMail purple -->
+  <rect width="128" height="128" rx="24" fill="#6D4AFF"/>
+  <!-- Bold white "P" centered -->
+  <text
+    x="64"
+    y="50%"
+    dy="0.35em"
+    font-family="Arial Black, Arial, Helvetica, sans-serif"
+    font-weight="900"
+    font-size="80"
+    fill="white"
+    text-anchor="middle"
+  >P</text>
+</svg>
