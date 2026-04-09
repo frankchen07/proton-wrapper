@@ -136,6 +136,11 @@ export function findToolbarButton(keywords: string[]): HTMLButtonElement | null 
 }
 
 export function refreshInbox(): void {
+  const spinnerEl = document.querySelector('.reload-spinner')
+  if (spinnerEl) {
+    const btn = spinnerEl.closest('button') as HTMLButtonElement | null
+    if (btn && (btn as HTMLElement).offsetParent !== null && !btn.disabled) { btn.click(); return }
+  }
   const btn = findToolbarButton(['refresh', 'reload'])
   if (btn) { btn.click(); return }
   const inboxSelectors = ['a[href*="inbox" i]', '[data-testid*="inbox" i]', '[aria-label*="Inbox" i]']
